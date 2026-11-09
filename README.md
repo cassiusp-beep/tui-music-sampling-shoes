@@ -2,6 +2,21 @@
 
 Two people. One shoe each. Together you remix a song with your feet.
 
+## Pictures
+
+**The music app** with the left shoe live over Bluetooth (40 updates a second). The right player is on the simulator.
+
+![Music app with the left shoe connected](docs/sampler-app.png)
+
+**Tinkercad wiring** for one shoe's breadboard: the XIAO (left), the gyro (right, bottom half), and the FSR with its 220 ohm resistor (top right).
+
+![Tinkercad breadboard wiring](docs/tinkercad-circuit.png)
+
+**The real left-shoe build** in its 3D-printed tent case: the XIAO ESP32-C6 (small black board) and the MPU-6050 gyro (purple board, red light) on the breadboard, with the Arduino UNO R4 Minima underneath.
+
+![Breadboard build, view 1](docs/breadboard-1.jpg)
+![Breadboard build, view 2](docs/breadboard-2.jpg)
+
 ## What's in this folder
 
 | Folder | What it is | Goes on |
