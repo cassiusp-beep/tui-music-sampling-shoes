@@ -231,9 +231,11 @@ async function buildDemo(){
       if (b%2===1) hit(oc,nb,t,'bandpass',1800,0.18,0.5);
       hit(oc,nb,t,'highpass',8000,0.04,0.18); hit(oc,nb,t+BEAT/2,'highpass',8000,0.04,0.12);
     }});
-  const bass = await render(oc => { for (let bar=0;bar<BARS;bar++) for (let e=0;e<8;e++){ const t = (bar*4 + e/2)*BEAT; const m = roots[bar] + (e===3||e===7 ? 12 : 0); tone(oc,'sawtooth',midi(m),t,BEAT*0.45,0.35,700); } });
-  const vocals = await render(oc => { lead.forEach((m,i) => { const t = i*BEAT; const o = tone(oc,'square',midi(m),t,BEAT*0.9,0.12,2600); const lfo = oc.createOscillator(); lfo.frequency.value = 5.5; const lg = oc.createGain(); lg.gain.value = 6; lfo.connect(lg); lg.connect(o.frequency); lfo.start(t); lfo.stop(t+BEAT); }); });
-  const other = await render(oc => { chords.forEach((ch,bar) => ch.forEach(m => { const t = bar*4*BEAT; const o = oc.createOscillator(); o.type='triangle'; o.frequency.value = midi(m); const g = oc.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.1,t+0.3); g.gain.linearRampToValueAtTime(0.0001,t+4*BEAT); o.connect(g); g.connect(oc.destination); o.start(t); o.stop(t+4*BEAT+0.05); })); });
+  // round sub bass: a deep sine plus a soft triangle an octave up (so laptop speakers can still play it),
+  // one long note per beat, with a step up to the fifth on beat 4
+  const bass = await render(oc => { for (let bar=0;bar<BARS;bar++) for (let q=0;q<4;q++){ const t = (bar*4 + q)*BEAT; const m = roots[bar] + (q===3 ? 7 : 0); tone(oc,'sine',midi(m-12),t,BEAT*0.85,0.55,400); tone(oc,'triangle',midi(m),t,BEAT*0.85,0.25,600); } });
+  const vocals = await render(oc => { lead.forEach((m,i) => { const t = i*BEAT; const o = tone(oc,'square',midi(m),t,BEAT*0.9,0.4,2600); const lfo = oc.createOscillator(); lfo.frequency.value = 5.5; const lg = oc.createGain(); lg.gain.value = 6; lfo.connect(lg); lg.connect(o.frequency); lfo.start(t); lfo.stop(t+BEAT); }); });
+  const other = await render(oc => { chords.forEach((ch,bar) => ch.forEach(m => { const t = bar*4*BEAT; const o = oc.createOscillator(); o.type='triangle'; o.frequency.value = midi(m); const g = oc.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.18,t+0.3); g.gain.linearRampToValueAtTime(0.0001,t+4*BEAT); o.connect(g); g.connect(oc.destination); o.start(t); o.stop(t+4*BEAT+0.05); })); });
   return {drums, bass, vocals, other};
 }
 
