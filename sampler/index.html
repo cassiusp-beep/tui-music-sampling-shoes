@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Music Sampling Shoes</title>
+<style>
+:root{--bg:#0e1014;--panel:#171a21;--line:#2a2f3a;--text:#e9ebf1;--mute:#8d95a8;--L:#3fd0c0;--R:#f5a54a;--accent:#a58bff;--ok:#4cc38a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line)}
+h1{font-size:18px;margin:0 14px 0 0;letter-spacing:.02em}
+h1 span{color:var(--mute);font-weight:400}
+button,select{background:#252a35;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font:inherit;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#14111f;font-weight:650}
+button.L{border-color:var(--L)} button.R{border-color:var(--R)}
+.status{color:var(--mute);font-size:13px;margin-left:auto}
+main{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px 20px 40px;max-width:1200px;margin:0 auto}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.full{grid-column:1/-1}
+@media(max-width:820px){main{grid-template-columns:1fr}.status{margin-left:0;width:100%}}
+h2{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
+h3{margin:14px 0 6px;font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.08em}
+.dot{width:9px;height:9px;border-radius:50%;background:#4a4f5c;display:inline-block}
+.dot.live{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.tag{font-size:12px;color:var(--mute);font-weight:400;margin-left:auto}
+.row{display:grid;grid-template-columns:96px 1fr 70px;gap:10px;align-items:center;margin:6px 0}
+.bar{height:12px;background:#0a0c10;border-radius:6px;overflow:hidden;position:relative}
+.bar i{position:absolute;top:0;bottom:0;left:0;width:0;background:var(--c,var(--accent));border-radius:6px}
+.bar.signed:after{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:#3a404d}
+.num{font-variant-numeric:tabular-nums;color:var(--mute);text-align:right;font-size:12px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.sim{opacity:.55}.sim.active{opacity:1}
+.stems{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:600px){.stems{grid-template-columns:repeat(2,1fr)}}
+.stem{background:#0f1217;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+.stem .who{font-size:12px;font-weight:650}
+.stem .vbar{height:90px;width:22px;margin:8px auto;background:#0a0c10;border-radius:6px;position:relative;overflow:hidden}
+.stem .vbar i{position:absolute;left:0;right:0;bottom:0;height:0;background:var(--c,var(--accent))}
+.stem label{font-size:12px;color:var(--mute);display:block;margin-top:6px;cursor:pointer}
+.stem input[type=file]{display:none}
+.map{width:100%;border-collapse:collapse}
+.map td{padding:5px 6px;border-bottom:1px solid #222733}
+.map td:first-child{white-space:nowrap}
+.flash{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle,rgba(165,139,255,.35),transparent 70%);opacity:0;transition:opacity .4s}
+.flash.on{opacity:1;transition:none}
+.help{color:var(--mute);font-size:13px}
+.help kbd{background:#252a35;border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--text)}
+.fx{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Music Sampling Shoes <span>sampler</span></h1>
+  <button class="primary" id="startBtn">Start music</button>
+  <button class="L" id="bleL">Connect Left shoe</button>
+  <button class="R" id="bleR">Connect Right shoe</button>
+  <button id="usbBtn" title="Plug a Minima straight into this laptop to test without Bluetooth">USB test</button>
+  <div class="status" id="status">Not connected. Simulator is driving both feet.</div>
+</header>
+
+<main>
+  <!-- feet -->
+  <section class="panel foot" data-foot="L">
+    <h2><span class="dot" id="dotL"></span> Left player <span class="tag" id="rateL">simulator</span></h2>
+    <div class="row"><span>Pressure</span><div class="bar"><i id="pressL" style="--c:var(--L)"></i></div><span class="num" id="pressLn">0</span></div>
+    <div class="row"><span>Tilt</span><div class="bar signed"><i id="tiltL" style="--c:var(--L)"></i></div><span class="num" id="tiltLn">0</span></div>
+    <div class="row"><span>Shake</span><div class="bar"><i id="shakeL" style="--c:var(--L)"></i></div><span class="num" id="shakeLn">0</span></div>
+    <div class="btns">
+      <button data-cal="flat" data-foot="L" title="Stand normally with the shoe flat, then click">Set: standing flat</button>
+      <button data-cal="air" data-foot="L" title="Lift this foot off the ground, then click">Set: foot lifted</button>
+    </div>
+    <h3>Simulator (used when this shoe isn't connected)</h3>
+    <div class="sim" id="simL">
+      <div class="row"><span>Pressure</span><input type="range" min="0" max="4095" value="2000" data-sim="fsr" data-foot="L"><span class="num">raw</span></div>
+      <div class="row"><span>Tilt</span><input type="range" min="-45" max="45" value="0" data-sim="pitch" data-foot="L"><span class="num">deg</span></div>
+      <div class="row"><span>Shake</span><input type="range" min="0" max="500" value="0" data-sim="shake" data-foot="L"><span class="num">deg/s</span></div>
+    </div>
+  </section>
+
+  <section class="panel foot" data-foot="R">
+    <h2><span class="dot" id="dotR"></span> Right player <span class="tag" id="rateR">simulator</span></h2>
+    <div class="row"><span>Pressure</span><div class="bar"><i id="pressR" style="--c:var(--R)"></i></div><span class="num" id="pressRn">0</span></div>
+    <div class="row"><span>Tilt</span><div class="bar signed"><i id="tiltR" style="--c:var(--R)"></i></div><span class="num" id="tiltRn">0</span></div>
+    <div class="row"><span>Shake</span><div class="bar"><i id="shakeR" style="--c:var(--R)"></i></div><span class="num" id="shakeRn">0</span></div>
+    <div class="btns">
+      <button data-cal="flat" data-foot="R" title="Stand normally with the shoe flat, then click">Set: standing flat</button>
+      <button data-cal="air" data-foot="R" title="Lift this foot off the ground, then click">Set: foot lifted</button>
+    </div>
+    <h3>Simulator (used when this shoe isn't connected)</h3>
+    <div class="sim" id="simR">
+      <div class="row"><span>Pressure</span><input type="range" min="0" max="4095" value="2000" data-sim="fsr" data-foot="R"><span class="num">raw</span></div>
+      <div class="row"><span>Tilt</span><input type="range" min="-45" max="45" value="0" data-sim="pitch" data-foot="R"><span class="num">deg</span></div>
+      <div class="row"><span>Shake</span><input type="range" min="0" max="500" value="0" data-sim="shake" data-foot="R"><span class="num">deg/s</span></div>
+    </div>
+  </section>
+
+  <!-- mix -->
+  <section class="panel full">
+    <h2>The song, in 4 parts <span class="tag" id="srcTag">demo loop (load your own stems below)</span></h2>
+    <div class="stems" id="stems"></div>
+    <h3>Effects</h3>
+    <div class="fx">
+      <div class="row" style="grid-template-columns:60px 1fr"><span>Filter</span><div class="bar"><i id="fxfilter"></i></div></div>
+      <div class="row" style="grid-template-columns:60px 1fr"><span>Speed</span><div class="bar signed"><i id="fxrate"></i></div></div>
+      <div class="row" style="grid-template-columns:60px 1fr"><span>Echo</span><div class="bar"><i id="fxecho"></i></div></div>
+    </div>
+  </section>
+
+  <!-- mapping -->
+  <section class="panel">
+    <h2>What each move controls</h2>
+    <table class="map" id="mapTable"></table>
+    <div class="btns">
+      <button id="presetStem">Preset: Stem Player duet</button>
+      <button id="presetFx">Preset: DJ effects</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>How to play</h2>
+    <div class="help">
+      <p><b>Left player</b> controls drums and bass. <b>Right player</b> controls vocals and melody. Standing on your shoe brings your part in, lifting your foot drops it out, and tilting toes up or down brings in your second part.</p>
+      <p><b>Stomp together</b> (both players within a quarter second) to <b>pass the sound</b>: you swap parts. Shaking a foot adds echo.</p>
+      <p>Keyboard for testing: hold <kbd>A</kbd> left stomp, <kbd>L</kbd> right stomp, <kbd>Space</kbd> both stomp.</p>
+      <p>Calibrate each shoe when the wearer puts it on: stand flat and click <i>Set: standing flat</i>, then lift that foot and click <i>Set: foot lifted</i>.</p>
+    </div>
+  </section>
+</main>
+<div class="flash" id="flash"></div>
+
+<script>
+// ===================== constants =====================
+const SERVICE_UUID = '7b1e0001-5d2c-4c3b-9a41-50a1c5717e00';
+const DATA_UUID    = '7b1e0002-5d2c-4c3b-9a41-50a1c5717e00';
+const NUS_SERVICE  = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';   // Bluefruit LE Shield (Nordic UART)
+const NUS_TX       = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+const STEMS = [
+  {id:'drums',  name:'Drums',  owner:'L'},
+  {id:'bass',   name:'Bass',   owner:'L'},
+  {id:'vocals', name:'Vocals', owner:'R'},
+  {id:'other',  name:'Melody', owner:'R'},
+];
+const DEAD = 0.10;        // tilt dead zone so a flat foot reads 0
+const STOMP = 1.35;       // pressure 35% above standing = stomp
+const TOGETHER_MS = 250;  // how close two stomps must be
+
+const INPUTS = [
+  {key:'Lpress', label:'Left: pressure',  signed:false},
+  {key:'Ltilt',  label:'Left: tilt',      signed:true},
+  {key:'Rpress', label:'Right: pressure', signed:false},
+  {key:'Rtilt',  label:'Right: tilt',     signed:true},
+  {key:'shake',  label:'Either: shake',   signed:false},
+];
+const TARGETS = [['none','nothing'],['drums','Drums volume'],['bass','Bass volume'],['vocals','Vocals volume'],['other','Melody volume'],['filter','Filter sweep'],['rate','Speed / pitch'],['echo','Echo']];
+const EVENT_TARGETS = [['pass','Pass the sound (swap parts)'],['drop','Drop (cut all for a beat)'],['vocalcut','Vocal cut on/off'],['none','nothing']];
+const PRESETS = {
+  stem: {map:{Lpress:'drums',Ltilt:'bass',Rpress:'vocals',Rtilt:'other',shake:'echo'}, inv:{}, stomp:'pass'},
+  fx:   {map:{Lpress:'drums',Ltilt:'filter',Rpress:'vocals',Rtilt:'rate',shake:'echo'}, inv:{}, stomp:'drop'},
+};
+
+// ===================== storage (optional) =====================
+function load(k, d){ try{ const v = localStorage.getItem('ss_'+k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }
+function save(k, v){ try{ localStorage.setItem('ss_'+k, JSON.stringify(v)); }catch(e){} }
+
+// ===================== foot state =====================
+function mkFoot(id){
+  return { id, raw:{fsr:2000,pitch:0,roll:0,shake:0}, lastLive:0, pkts:0, rate:0,
+    cal: load('cal'+id, {air:80, stand:2000, neutral:0, range:30}),
+    sim:{fsr:2000,pitch:0,shake:0}, keyStomp:false,
+    press:0, tilt:0, shakeN:0, prevStomp:false, stompT:-1e9, src:'sim' };
+}
+const feet = {L:mkFoot('L'), R:mkFoot('R')};
+let swapped = false, vocalCut = false, dropUntil = 0, lastFired = 0;
+
+function feed(id, fsr, pitch, roll, shake, src){
+  const f = feet[id];
+  f.raw = {fsr, pitch, roll, shake};
+  f.lastLive = performance.now(); f.pkts++; f.src = src;
+}
+
+// ===================== audio =====================
+let ctx = null, mix, filter, master, delay, fb, wet;
+const stemNodes = {};      // id -> {buffer, gain, source}
+let playing = false, usingDemo = true;
+
+function ensureCtx(){
+  if (ctx) return;
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  mix = ctx.createGain();
+  filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 20000; filter.Q.value = 0.8;
+  master = ctx.createGain(); master.gain.value = 0.9;
+  delay = ctx.createDelay(2.0); delay.delayTime.value = 0.375;
+  fb = ctx.createGain(); fb.gain.value = 0.3;
+  wet = ctx.createGain(); wet.gain.value = 0;
+  mix.connect(filter); filter.connect(master);
+  filter.connect(wet); wet.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(master);
+  master.connect(ctx.destination);
+  for (const s of STEMS){ const g = ctx.createGain(); g.gain.value = 0; g.connect(mix); stemNodes[s.id] = {buffer:null, gain:g, source:null}; }
+}
+
+function startSources(){
+  const t = ctx.currentTime + 0.08;
+  for (const s of STEMS){
+    const n = stemNodes[s.id];
+    if (n.source){ try{ n.source.stop(); }catch(e){} n.source.disconnect(); n.source = null; }
+    if (!n.buffer) continue;
+    const src = ctx.createBufferSource(); src.buffer = n.buffer; src.loop = true;
+    src.connect(n.gain); src.start(t); n.source = src;
+  }
+  playing = true;
+}
+
+// ---------- demo loop: 4 bars at 120 bpm, rendered offline ----------
+const SR = 44100, BPM = 120, BEAT = 60/BPM, BARS = 4, LEN = BARS*4*BEAT;
+const midi = m => 440*Math.pow(2,(m-69)/12);
+function noiseBuf(oc){ const b = oc.createBuffer(1, oc.sampleRate*0.5, oc.sampleRate); const d = b.getChannelData(0); for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1; return b; }
+function env(oc, node, t, vol, a, dur){ const g = oc.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+a); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); node.connect(g); g.connect(oc.destination); return g; }
+function tone(oc, type, f, t, dur, vol, cut){ const o = oc.createOscillator(); o.type = type; o.frequency.value = f; const lp = oc.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = cut; o.connect(lp); env(oc, lp, t, vol, 0.01, dur); o.start(t); o.stop(t+dur+0.05); return o; }
+function hit(oc, nb, t, type, freq, dur, vol){ const s = oc.createBufferSource(); s.buffer = nb; const f = oc.createBiquadFilter(); f.type = type; f.frequency.value = freq; s.connect(f); env(oc, f, t, vol, 0.002, dur); s.start(t); s.stop(t+dur+0.05); }
+async function render(fn){ const oc = new OfflineAudioContext(2, Math.round(SR*LEN), SR); fn(oc); return oc.startRendering(); }
+async function buildDemo(){
+  const chords = [[57,60,64],[53,57,60],[60,64,67],[55,59,62]]; // Am F C G
+  const roots = [45,41,48,43];
+  const lead = [76,74,72,69, 72,74,76,79, 76,74,72,74, 71,72,74,76];
+  const drums = await render(oc => { const nb = noiseBuf(oc);
+    for (let b=0;b<BARS*4;b++){ const t = b*BEAT;
+      const o = oc.createOscillator(); o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(42,t+0.12); env(oc,o,t,0.9,0.003,0.35); o.start(t); o.stop(t+0.4);
+      if (b%2===1) hit(oc,nb,t,'bandpass',1800,0.18,0.5);
+      hit(oc,nb,t,'highpass',8000,0.04,0.18); hit(oc,nb,t+BEAT/2,'highpass',8000,0.04,0.12);
+    }});
+  const bass = await render(oc => { for (let bar=0;bar<BARS;bar++) for (let e=0;e<8;e++){ const t = (bar*4 + e/2)*BEAT; const m = roots[bar] + (e===3||e===7 ? 12 : 0); tone(oc,'sawtooth',midi(m),t,BEAT*0.45,0.35,700); } });
+  const vocals = await render(oc => { lead.forEach((m,i) => { const t = i*BEAT; const o = tone(oc,'square',midi(m),t,BEAT*0.9,0.12,2600); const lfo = oc.createOscillator(); lfo.frequency.value = 5.5; const lg = oc.createGain(); lg.gain.value = 6; lfo.connect(lg); lg.connect(o.frequency); lfo.start(t); lfo.stop(t+BEAT); }); });
+  const other = await render(oc => { chords.forEach((ch,bar) => ch.forEach(m => { const t = bar*4*BEAT; const o = oc.createOscillator(); o.type='triangle'; o.frequency.value = midi(m); const g = oc.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.1,t+0.3); g.gain.linearRampToValueAtTime(0.0001,t+4*BEAT); o.connect(g); g.connect(oc.destination); o.start(t); o.stop(t+4*BEAT+0.05); })); });
+  return {drums, bass, vocals, other};
+}
+
+async function start(){
+  ensureCtx();
+  await ctx.resume();
+  if (STEMS.some(s => !stemNodes[s.id].buffer)){
+    setStatus('Building demo loop...');
+    const demo = await buildDemo();
+    for (const s of STEMS) if (!stemNodes[s.id].buffer) stemNodes[s.id].buffer = demo[s.id];
+  }
+  startSources();
+  document.getElementById('startBtn').textContent = 'Restart music';
+  updateStatus();
+}
+
+async function loadStem(id, file){
+  ensureCtx();
+  try{
+    const buf = await ctx.decodeAudioData(await file.arrayBuffer());
+    stemNodes[id].buffer = buf; usingDemo = false;
+    document.getElementById('srcTag').textContent = 'your stems';
+    document.querySelector(`[data-stemfile="${id}"]`).textContent = file.name.slice(0,22);
+    if (playing) startSources();
+  }catch(e){ setStatus('Could not read '+file.name+'. Try a WAV or MP3.'); }
+}
+
+// ===================== input -> sound =====================
+const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+function computeFeet(now){
+  for (const id of ['L','R']){
+    const f = feet[id], live = now - f.lastLive < 600;
+    const src = live ? f.raw : { fsr: f.keyStomp ? f.cal.stand*1.7 : f.sim.fsr, pitch: f.sim.pitch, shake: f.sim.shake };
+    const c = f.cal;
+    f.press = clamp((src.fsr - c.air) / Math.max(1, c.stand - c.air), 0, 2);
+    // tilt in any direction: distance from the "standing flat" angle,
+    // signed by toe up / toe down (sign only matters for the Speed effect)
+    const dp = src.pitch - c.neutral, dr = (src.roll || 0) - (c.neutralRoll || 0);
+    let t = (dp < 0 ? -1 : 1) * Math.hypot(dp, dr) / c.range;
+    t = Math.abs(t) < DEAD ? 0 : Math.sign(t) * (Math.abs(t) - DEAD) / (1 - DEAD);
+    f.tilt = clamp(t, -1, 1);
+    f.shakeN = clamp(src.shake / 400, 0, 1);
+    f.live = live;
+    const st = f.press > STOMP;
+    if (st && !f.prevStomp) f.stompT = now;
+    f.prevStomp = st;
+  }
+  const L = feet.L, R = feet.R;
+  if (Math.abs(L.stompT - R.stompT) < TOGETHER_MS && Math.max(L.stompT, R.stompT) > lastFired){
+    lastFired = now; fireStomp();
+  }
+}
+
+function fireStomp(){
+  const what = document.getElementById('stompSel').value;
+  if (what === 'pass') swapped = !swapped;
+  else if (what === 'drop' && ctx) dropUntil = ctx.currentTime + BEAT*2;
+  else if (what === 'vocalcut') vocalCut = !vocalCut;
+  if (what !== 'none'){ const fl = document.getElementById('flash'); fl.classList.add('on'); setTimeout(()=>fl.classList.remove('on'), 60); }
+}
+
+function inputValues(){
+  // when passed, each player's moves drive the other player's parts
+  const A = swapped ? feet.R : feet.L, B = swapped ? feet.L : feet.R;
+  return { Lpress:A.press, Ltilt:A.tilt, Rpress:B.press, Rtilt:B.tilt, shake:Math.max(feet.L.shakeN, feet.R.shakeN) };
+}
+
+let levels = {drums:0,bass:0,vocals:0,other:0}, fxv = {filter:0,rate:0,echo:0};
+function applyAudio(){
+  const v = inputValues(), T = {};
+  for (const inp of INPUTS){
+    const tgt = document.getElementById('map_'+inp.key).value; if (tgt === 'none') continue;
+    const inv = document.getElementById('inv_'+inp.key).checked;
+    let x = v[inp.key];
+    if (tgt === 'rate'){ x = inp.signed ? x : clamp(x,0,1)*2-1; if (inv) x = -x; T.rate = (T.rate||0) + x; continue; }
+    x = clamp(Math.abs(x), 0, 1); if (inv) x = 1 - x;
+    T[tgt] = T[tgt] == null ? x : Math.max(T[tgt], x);
+  }
+  for (const s of STEMS){
+    let g = T[s.id] == null ? 1 : T[s.id];
+    if (s.id === 'vocals' && vocalCut) g = 0;
+    if (ctx && ctx.currentTime < dropUntil) g = 0;
+    levels[s.id] = g;
+  }
+  fxv.filter = T.filter || 0; fxv.rate = clamp(T.rate || 0, -1, 1); fxv.echo = T.echo || 0;
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  for (const s of STEMS) stemNodes[s.id].gain.gain.setTargetAtTime(levels[s.id], now, 0.03);
+  filter.frequency.setTargetAtTime(20000 * Math.pow(0.01, fxv.filter), now, 0.05);
+  const rate = Math.pow(2, fxv.rate * 0.5);
+  for (const s of STEMS){ const src = stemNodes[s.id].source; if (src) src.playbackRate.setTargetAtTime(rate, now, 0.05); }
+  wet.gain.setTargetAtTime(fxv.echo * 0.7, now, 0.05);
+  fb.gain.setTargetAtTime(0.25 + 0.35 * fxv.echo, now, 0.05);
+}
+
+// ===================== UI =====================
+function buildUI(){
+  const wrap = document.getElementById('stems');
+  wrap.innerHTML = STEMS.map(s => `
+    <div class="stem" id="stem_${s.id}">
+      <div class="who" id="who_${s.id}"></div>
+      <div class="vbar"><i id="lvl_${s.id}"></i></div>
+      <div>${s.name}</div>
+      <label>Load file<input type="file" accept="audio/*" data-stem="${s.id}"></label>
+      <div class="num" style="text-align:center" data-stemfile="${s.id}">demo</div>
+    </div>`).join('');
+  wrap.querySelectorAll('input[type=file]').forEach(el => el.addEventListener('change', e => { if (e.target.files[0]) loadStem(el.dataset.stem, e.target.files[0]); }));
+
+  const saved = load('map', PRESETS.stem);
+  const tbl = document.getElementById('mapTable');
+  tbl.innerHTML = INPUTS.map(inp => `<tr><td>${inp.label}</td><td><select id="map_${inp.key}">${TARGETS.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select></td><td><label class="help"><input type="checkbox" id="inv_${inp.key}"> flip</label></td></tr>`).join('')
+    + `<tr><td>Both stomp together</td><td colspan="2"><select id="stompSel">${EVENT_TARGETS.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select></td></tr>`;
+  applyPreset(saved);
+  tbl.addEventListener('change', () => save('map', readMap()));
+  document.getElementById('presetStem').onclick = () => { applyPreset(PRESETS.stem); save('map', readMap()); };
+  document.getElementById('presetFx').onclick = () => { applyPreset(PRESETS.fx); save('map', readMap()); };
+
+  document.querySelectorAll('[data-sim]').forEach(el => el.addEventListener('input', () => { feet[el.dataset.foot].sim[el.dataset.sim] = +el.value; }));
+  document.querySelectorAll('[data-cal]').forEach(el => el.addEventListener('click', () => calibrate(el.dataset.foot, el.dataset.cal)));
+}
+function applyPreset(p){
+  for (const inp of INPUTS){ document.getElementById('map_'+inp.key).value = (p.map||{})[inp.key] || 'none'; document.getElementById('inv_'+inp.key).checked = !!(p.inv||{})[inp.key]; }
+  document.getElementById('stompSel').value = p.stomp || 'pass';
+}
+function readMap(){
+  const p = {map:{}, inv:{}, stomp:document.getElementById('stompSel').value};
+  for (const inp of INPUTS){ p.map[inp.key] = document.getElementById('map_'+inp.key).value; p.inv[inp.key] = document.getElementById('inv_'+inp.key).checked; }
+  return p;
+}
+function calibrate(id, kind){
+  const f = feet[id], live = performance.now() - f.lastLive < 600;
+  const src = live ? f.raw : {fsr:f.sim.fsr, pitch:f.sim.pitch};
+  if (kind === 'flat'){ f.cal.stand = Math.max(src.fsr, f.cal.air + 50); f.cal.neutral = src.pitch; f.cal.neutralRoll = src.roll || 0; }
+  else { f.cal.air = Math.min(src.fsr, f.cal.stand - 50); }
+  save('cal'+id, f.cal);
+  setStatus(`${id === 'L' ? 'Left' : 'Right'} shoe: ${kind === 'flat' ? 'standing' : 'lifted'} value saved (${Math.round(src.fsr)}).`);
+}
+
+function setBar(id, v, signed){
+  const el = document.getElementById(id); if (!el) return;
+  if (signed){ const w = Math.abs(v)*50; el.style.width = w+'%'; el.style.left = (v<0 ? 50-w : 50)+'%'; }
+  else el.style.width = clamp(v,0,1)*100+'%';
+}
+function draw(){
+  for (const id of ['L','R']){
+    const f = feet[id];
+    setBar('press'+id, f.press/1.6); setBar('tilt'+id, f.tilt, true); setBar('shake'+id, f.shakeN);
+    document.getElementById('press'+id+'n').textContent = f.press.toFixed(2);
+    document.getElementById('tilt'+id+'n').textContent = f.tilt.toFixed(2);
+    document.getElementById('shake'+id+'n').textContent = f.shakeN.toFixed(2);
+    document.getElementById('dot'+id).classList.toggle('live', f.live);
+    document.getElementById('sim'+id).classList.toggle('active', !f.live);
+    document.getElementById('rate'+id).textContent = f.live ? `${f.src}, ${f.rate}/s` : 'simulator';
+  }
+  for (const s of STEMS){
+    const owner = swapped ? (s.owner === 'L' ? 'R' : 'L') : s.owner;
+    const lvl = document.getElementById('lvl_'+s.id);
+    lvl.style.height = levels[s.id]*100+'%';
+    lvl.style.setProperty('--c', owner === 'L' ? 'var(--L)' : 'var(--R)');
+    const who = document.getElementById('who_'+s.id);
+    who.textContent = owner === 'L' ? 'LEFT PLAYER' : 'RIGHT PLAYER';
+    who.style.color = owner === 'L' ? 'var(--L)' : 'var(--R)';
+    if (s.id === 'vocals') document.getElementById('stem_vocals').style.opacity = vocalCut ? .4 : 1;
+  }
+  setBar('fxfilter', fxv.filter); setBar('fxrate', fxv.rate, true); setBar('fxecho', fxv.echo);
+}
+
+function tick(){ const now = performance.now(); computeFeet(now); applyAudio(); draw(); requestAnimationFrame(tick); }
+setInterval(() => { for (const id of ['L','R']){ feet[id].rate = feet[id].pkts; feet[id].pkts = 0; } updateStatus(); }, 1000);
+
+let statusMsgUntil = 0;
+function setStatus(t){ document.getElementById('status').textContent = t; statusMsgUntil = performance.now() + 3000; }
+function updateStatus(){
+  if (performance.now() < statusMsgUntil) return;
+  const live = ['L','R'].filter(id => feet[id].live).map(id => id === 'L' ? 'Left' : 'Right');
+  document.getElementById('status').textContent = (live.length ? live.join(' + ') + ' live. ' : 'No shoes live, simulator is driving. ') + (playing ? 'Music playing.' : 'Press Start music.');
+}
+
+// keyboard stomps for testing
+const keyFoot = {a:'L', l:'R'};
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space'){ e.preventDefault(); feet.L.keyStomp = feet.R.keyStomp = true; setTimeout(()=>{feet.L.keyStomp = feet.R.keyStomp = false;}, 150); }
+  const id = keyFoot[e.key.toLowerCase()]; if (id) feet[id].keyStomp = true;
+});
+addEventListener('keyup', e => { const id = keyFoot[e.key.toLowerCase()]; if (id) feet[id].keyStomp = false; });
+
+// ===================== Bluetooth (two shoes) =====================
+async function connectBLE(id){
+  if (!navigator.bluetooth){ setStatus('Bluetooth needs Chrome or Edge, opened from localhost or https.'); return; }
+  try{
+    setStatus(`Pick "MusicShoe-${id}" in the popup...`);
+    const dev = await navigator.bluetooth.requestDevice({
+      filters:[{namePrefix:'MusicShoe-'+id}, {namePrefix:'Adafruit Bluefruit'}],
+      optionalServices:[SERVICE_UUID, NUS_SERVICE] });
+    let ch = null, lineBuf = '';
+    const onText = e => {                       // Bluefruit shield: text lines over Nordic UART
+      lineBuf += new TextDecoder().decode(e.target.value);
+      let i;
+      while ((i = lineBuf.indexOf('\n')) >= 0){
+        const p = lineBuf.slice(0,i).trim().split(','); lineBuf = lineBuf.slice(i+1);
+        if (p.length >= 5 && (p[0] === 'L' || p[0] === 'R')) feed(id, +p[1], +p[2], +p[3], +p[4], 'bluetooth');
+      }
+      if (lineBuf.length > 200) lineBuf = '';
+    };
+    const onBinary = e => {                     // XIAO: 8 packed bytes
+      const d = e.target.value;
+      if (d.byteLength >= 8) feed(id, d.getUint16(0,true), d.getInt16(2,true)/100, d.getInt16(4,true)/100, d.getUint16(6,true), 'bluetooth');
+    };
+    const run = async () => {
+      if (ch){ ch.removeEventListener('characteristicvaluechanged', onText); ch.removeEventListener('characteristicvaluechanged', onBinary); }
+      const server = await dev.gatt.connect();
+      try {
+        const svc = await server.getPrimaryService(NUS_SERVICE);
+        ch = await svc.getCharacteristic(NUS_TX);
+        ch.addEventListener('characteristicvaluechanged', onText);
+      } catch (err) {
+        const svc = await server.getPrimaryService(SERVICE_UUID);
+        ch = await svc.getCharacteristic(DATA_UUID);
+        ch.addEventListener('characteristicvaluechanged', onBinary);
+      }
+      await ch.startNotifications();
+      setStatus(`${id === 'L' ? 'Left' : 'Right'} shoe connected.`);
+    };
+    dev.addEventListener('gattserverdisconnected', () => {
+      setStatus(`${id === 'L' ? 'Left' : 'Right'} shoe dropped, reconnecting...`);
+      setTimeout(() => run().catch(() => setStatus(`${id === 'L' ? 'Left' : 'Right'} shoe lost. Click Connect again.`)), 800);
+    });
+    await run();
+  }catch(e){ setStatus(e.name === 'NotFoundError' ? 'No shoe picked.' : 'Bluetooth error: ' + e.message); }
+}
+
+// ===================== USB test (Minima plugged in) =====================
+async function connectUSB(){
+  if (!('serial' in navigator)){ setStatus('USB test needs Chrome or Edge on a laptop.'); return; }
+  let port;
+  try{ port = await navigator.serial.requestPort(); await port.open({baudRate:115200}); }
+  catch(e){ setStatus('No USB device picked.'); return; }
+  setStatus('USB connected. Reading the Minima...');
+  const dec = new TextDecoderStream(); port.readable.pipeTo(dec.writable).catch(()=>{});
+  const reader = dec.readable.getReader(); let buf = '';
+  try{
+    while (true){
+      const {value, done} = await reader.read(); if (done) break;
+      buf += value; let i;
+      while ((i = buf.indexOf('\n')) >= 0){
+        const p = buf.slice(0,i).trim().split(','); buf = buf.slice(i+1);
+        if ((p[0] === 'L' || p[0] === 'R') && p.length >= 5) feed(p[0], +p[1], +p[2], +p[3], +p[4], 'usb');
+      }
+    }
+  }catch(e){ setStatus('USB disconnected.'); }
+}
+
+document.getElementById('startBtn').onclick = start;
+document.getElementById('bleL').onclick = () => connectBLE('L');
+document.getElementById('bleR').onclick = () => connectBLE('R');
+document.getElementById('usbBtn').onclick = connectUSB;
+buildUI();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
