@@ -144,7 +144,8 @@ const STEMS = [
   {id:'other',  name:'Melody', owner:'R'},
 ];
 const DEAD = 0.10;        // tilt dead zone so a flat foot reads 0
-const STOMP = 1.35;       // pressure 35% above standing = stomp
+const STOMP = 1.6;        // pressure 60% above standing = stomp
+const STOMP_COOLDOWN_MS = 1500;  // after a swap, ignore stomps for this long
 const TOGETHER_MS = 250;  // how close two stomps must be
 
 const INPUTS = [
@@ -173,7 +174,7 @@ function mkFoot(id){
     press:0, tilt:0, shakeN:0, prevStomp:false, stompT:-1e9, src:'sim' };
 }
 const feet = {L:mkFoot('L'), R:mkFoot('R')};
-let swapped = false, vocalCut = false, dropUntil = 0, lastFired = 0;
+let swapped = false, vocalCut = false, dropUntil = 0, lastFired = -1e9;
 
 function feed(id, fsr, pitch, roll, shake, src){
   const f = feet[id];
@@ -233,7 +234,7 @@ async function buildDemo(){
     }});
   // round sub bass: a deep sine plus a soft triangle an octave up (so laptop speakers can still play it),
   // one long note per beat, with a step up to the fifth on beat 4
-  const bass = await render(oc => { for (let bar=0;bar<BARS;bar++) for (let q=0;q<4;q++){ const t = (bar*4 + q)*BEAT; const m = roots[bar] + (q===3 ? 7 : 0); tone(oc,'sine',midi(m-12),t,BEAT*0.85,0.55,400); tone(oc,'triangle',midi(m),t,BEAT*0.85,0.25,600); } });
+  const bass = await render(oc => { for (let bar=0;bar<BARS;bar++) for (let q=0;q<4;q++){ const t = (bar*4 + q)*BEAT; const m = roots[bar] + (q===3 ? 7 : 0); tone(oc,'sine',midi(m-12),t,BEAT*0.85,0.75,400); tone(oc,'triangle',midi(m),t,BEAT*0.85,0.45,600); } });
   const vocals = await render(oc => { lead.forEach((m,i) => { const t = i*BEAT; const o = tone(oc,'square',midi(m),t,BEAT*0.9,0.4,2600); const lfo = oc.createOscillator(); lfo.frequency.value = 5.5; const lg = oc.createGain(); lg.gain.value = 6; lfo.connect(lg); lg.connect(o.frequency); lfo.start(t); lfo.stop(t+BEAT); }); });
   const other = await render(oc => { chords.forEach((ch,bar) => ch.forEach(m => { const t = bar*4*BEAT; const o = oc.createOscillator(); o.type='triangle'; o.frequency.value = midi(m); const g = oc.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.18,t+0.3); g.gain.linearRampToValueAtTime(0.0001,t+4*BEAT); o.connect(g); g.connect(oc.destination); o.start(t); o.stop(t+4*BEAT+0.05); })); });
   return {drums, bass, vocals, other};
@@ -284,7 +285,7 @@ function computeFeet(now){
     f.prevStomp = st;
   }
   const L = feet.L, R = feet.R;
-  if (Math.abs(L.stompT - R.stompT) < TOGETHER_MS && Math.max(L.stompT, R.stompT) > lastFired){
+  if (Math.abs(L.stompT - R.stompT) < TOGETHER_MS && Math.max(L.stompT, R.stompT) > lastFired && now - lastFired > STOMP_COOLDOWN_MS){
     lastFired = now; fireStomp();
   }
 }
